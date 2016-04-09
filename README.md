@@ -22,12 +22,14 @@ extern crate fastlog;
 extern crate log
 ```
 
+Finally initialize the logger, and use it like any other log implementation.
+
 ## Example
 
 ```rust
+extern crate fastlog;
 #[macro_use]
 extern crate log;
-extern crate fastlog;
 
 fn main() {
     fastlog::LogBuilder::new().build().unwrap().init().unwrap();
