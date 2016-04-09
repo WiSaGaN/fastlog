@@ -1,0 +1,8 @@
+[package]
+name = "fastlog"
+version = "0.0.1"
+authors = ["Wangshan Lu <wisagan@gmail.com>"]
+
+[dependencies]
+log = "0.3"
+time = "0.1"
