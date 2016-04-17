@@ -63,6 +63,7 @@ impl Drop for Logger {
 
 pub struct LogBuilder {
     format: Box<Fn(&LogRecord) -> String + Sync + Send>,
+    capacity: usize,
     level: LogLevelFilter,
     path: PathBuf,
 }
@@ -74,6 +75,7 @@ impl LogBuilder {
                 format!("{}:{}: {}", record.level(),
                 record.location().module_path(), record.args())
             }),
+            capacity: 2048,
             level: LogLevelFilter::Info,
             path: PathBuf::from("./current.log"),
         }
@@ -83,6 +85,11 @@ impl LogBuilder {
         where F: Fn(&LogRecord) -> String + Sync + Send
     {
         self.format = Box::new(format);
+        self
+    }
+
+    pub fn capacity(&mut self, capacity: usize) -> &mut LogBuilder {
+        self.capacity = capacity;
         self
     }
 
@@ -97,7 +104,7 @@ impl LogBuilder {
     }
 
     pub fn build(self) -> Result<Logger, IoError> {
-        let queue = BoundedQueue::with_capacity(2048);
+        let queue = BoundedQueue::with_capacity(self.capacity);
         let queue_receiver = queue.clone();
         let mut writer = try!(OpenOptions::new()
                               .create(true)
