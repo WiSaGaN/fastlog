@@ -8,6 +8,7 @@ use std::fs::OpenOptions;
 use std::io::Error as IoError;
 use std::io::Write;
 use std::path::PathBuf;
+use time::{ get_time, Timespec };
 
 use details::Queue as BoundedQueue;
 
@@ -18,7 +19,7 @@ enum LoggerInput {
 }
 
 pub struct Logger {
-    format: Box<Fn(&LogRecord) -> String + Sync + Send>,
+    format: Box<Fn(Timespec, &LogRecord) -> String + Sync + Send>,
     level: LogLevelFilter,
     queue: BoundedQueue<LoggerInput>,
     worker_thread: Option<std::thread::JoinHandle<()>>,
@@ -45,7 +46,7 @@ impl Log for Logger {
         self.level >= metadata.level()
     }
     fn log(&self, record: &LogRecord) {
-        let log_msg = (self.format)(record);
+        let log_msg = (self.format)(get_time(), record);
         // TODO: add full policy: drop? or block?
         self.queue.push(LoggerInput::LogMsg(log_msg)).unwrap();
         self.worker_thread.as_ref().expect("logger thread empty, this is a bug").thread().unpark();
@@ -62,7 +63,7 @@ impl Drop for Logger {
 }
 
 pub struct LogBuilder {
-    format: Box<Fn(&LogRecord) -> String + Sync + Send>,
+    format: Box<Fn(Timespec, &LogRecord) -> String + Sync + Send>,
     capacity: usize,
     level: LogLevelFilter,
     path: PathBuf,
@@ -71,8 +72,8 @@ pub struct LogBuilder {
 impl LogBuilder {
     pub fn new() -> LogBuilder {
         LogBuilder {
-            format: Box::new(|record: &LogRecord| {
-                format!("{}:{}: {}", record.level(),
+            format: Box::new(|ts: Timespec, record: &LogRecord| {
+                format!("{:?} {}:{}: {}", ts, record.level(),
                 record.location().module_path(), record.args())
             }),
             capacity: 2048,
@@ -82,7 +83,7 @@ impl LogBuilder {
     }
 
     pub fn format<F: 'static>(&mut self, format: F) -> &mut LogBuilder
-        where F: Fn(&LogRecord) -> String + Sync + Send
+        where F: Fn(Timespec, &LogRecord) -> String + Sync + Send
     {
         self.format = Box::new(format);
         self

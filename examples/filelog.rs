@@ -5,10 +5,11 @@ extern crate time;
 
 use fastlog::LogBuilder;
 use log::LogRecord;
+use time::{ at, Timespec };
 
 fn init() {
-    let format = |record: &LogRecord| {
-        let tm = time::now();
+    let format = |ts: Timespec, record: &LogRecord| {
+        let tm = at(ts);
         let tm_millisec = tm.tm_nsec / 1_000_000;
         let tm_microsec = tm.tm_nsec / 1_000 - tm_millisec * 1_000;
         format!("{:0>4}{:0>2}{:0>2}T{:0>2}{:0>2}{:0>2}.{:0>3}{:0>3}{:>+03} {}{}/{}:{}[{}] {}",
