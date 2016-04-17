@@ -2,6 +2,13 @@
 name = "fastlog"
 version = "0.0.1"
 authors = ["Wangshan Lu <wisagan@gmail.com>"]
+license = "MIT/Apache-2.0"
+readme = "README.md"
+repository = "https://github.com/WiSaGaN/fastlog.git"
+description = """
+A high performance asynchronous logger
+"""
+keywords = ["async", "fastlog", "log"]
 
 [dependencies]
 log = "0.3"
