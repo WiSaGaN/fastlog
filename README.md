@@ -1,5 +1,9 @@
 # fastlog
 
+[![crates.io](http://meritbadge.herokuapp.com/fastlog)](https://crates.io/crates/fastlog)
+[![Build Status](https://travis-ci.org/WiSaGaN/fastlog.svg?branch=master)](https://travis-ci.org/WiSaGaN/fastlog)
+[![Coverage Status](https://coveralls.io/repos/github/WiSaGaN/fastlog/badge.svg?branch=master)](https://coveralls.io/github/WiSaGaN/fastlog?branch=master)
+
 A high performance Rust library for asynchronous logging
 
 Currently this is still a work in progress.
