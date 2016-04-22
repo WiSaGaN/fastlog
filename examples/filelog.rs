@@ -1,6 +1,6 @@
+extern crate fastlog;
 #[macro_use]
 extern crate log;
-extern crate fastlog;
 extern crate time;
 
 use fastlog::LogBuilder;
@@ -38,4 +38,5 @@ fn init() {
 fn main() {
     init();
     info!("Hello, world.");
+    log::shutdown_logger().unwrap();
 }

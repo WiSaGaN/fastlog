@@ -11,5 +11,5 @@ A high performance asynchronous logger
 keywords = ["async", "fastlog", "log"]
 
 [dependencies]
-log = "0.3"
+log = "0.3.6"
 time = "0.1"
