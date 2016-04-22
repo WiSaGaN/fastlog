@@ -67,6 +67,7 @@ pub struct LogBuilder {
     capacity: usize,
     level: LogLevelFilter,
     path: PathBuf,
+    header: Vec<String>,
 }
 
 impl LogBuilder {
@@ -79,6 +80,7 @@ impl LogBuilder {
             capacity: 2048,
             level: LogLevelFilter::Info,
             path: PathBuf::from("./current.log"),
+            header: Vec::new(),
         }
     }
 
@@ -104,6 +106,11 @@ impl LogBuilder {
         self
     }
 
+    pub fn header(&mut self, header: Vec<String>) -> &mut LogBuilder {
+        self.header = header;
+        self
+    }
+
     pub fn build(self) -> Result<Logger, IoError> {
         let queue = BoundedQueue::with_capacity(self.capacity);
         let queue_receiver = queue.clone();
@@ -111,6 +118,9 @@ impl LogBuilder {
                               .create(true)
                               .append(true)
                               .open(self.path));
+        for line in &self.header {
+            try!(writeln!(&mut writer, "{}", line));
+        }
         let worker_thread = try!(std::thread::Builder::new().
             name("logger".to_string()).
             spawn(move || loop {
