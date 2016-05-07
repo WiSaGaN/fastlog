@@ -14,7 +14,7 @@ To use fastlog, first add this to your `Cargo.toml`;
 
 ```toml
 [dependencies]
-fastlog = "0.0"
+fastlog = "0.1"
 log = "0.3"
 ```
 
