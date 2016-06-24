@@ -10,6 +10,8 @@ Currently this is still a work in progress.
 
 ## Usage
 
+Fastlog requires a minimum rustc version of 1.4.0.
+
 To use fastlog, first add this to your `Cargo.toml`;
 
 ```toml
