@@ -1,13 +1,13 @@
 extern crate log;
 extern crate time;
 
-use log::{ Log, LogLevelFilter, LogMetadata, LogRecord, SetLoggerError };
+use log::{Log, LogLevelFilter, LogMetadata, LogRecord, SetLoggerError};
 use std::fs::OpenOptions;
 use std::io::Error as IoError;
 use std::io::Write;
 use std::path::PathBuf;
 use std::sync::mpsc::{SyncSender, sync_channel};
-use time::{ get_time, Timespec };
+use time::{get_time, Timespec};
 
 
 #[derive(Clone, Debug)]
@@ -45,15 +45,22 @@ impl Log for Logger {
     }
     fn log(&self, record: &LogRecord) {
         let log_msg = (self.format)(get_time(), record);
-        self.queue.send(LoggerInput::LogMsg(log_msg)).expect("logger queue closed when logging, this is a bug");
+        self.queue
+            .send(LoggerInput::LogMsg(log_msg))
+            .expect("logger queue closed when logging, this is a bug");
     }
 }
 
 impl Drop for Logger {
     fn drop(&mut self) {
-        self.queue.send(LoggerInput::Quit).expect("logger queue closed before joining logger thread, this is a bug");
-        let join_handle = self.worker_thread.take().expect("logger thread empty when dropping logger, this is a bug");
-        join_handle.join().expect("failed to join logger thread when dropping logger, this is a bug");
+        self.queue
+            .send(LoggerInput::Quit)
+            .expect("logger queue closed before joining logger thread, this is a bug");
+        let join_handle = self.worker_thread
+            .take()
+            .expect("logger thread empty when dropping logger, this is a bug");
+        join_handle.join()
+            .expect("failed to join logger thread when dropping logger, this is a bug");
     }
 }
 
@@ -69,8 +76,11 @@ impl LogBuilder {
     pub fn new() -> LogBuilder {
         LogBuilder {
             format: Box::new(|ts: Timespec, record: &LogRecord| {
-                format!("{:?} {}:{}: {}", ts, record.level(),
-                record.location().module_path(), record.args())
+                format!("{:?} {}:{}: {}",
+                        ts,
+                        record.level(),
+                        record.location().module_path(),
+                        record.args())
             }),
             capacity: 2048,
             level: LogLevelFilter::Info,
@@ -109,32 +119,32 @@ impl LogBuilder {
     pub fn build(self) -> Result<Logger, IoError> {
         let (sync_sender, receiver) = sync_channel(self.capacity);
         let mut writer = try!(OpenOptions::new()
-                              .create(true)
-                              .append(true)
-                              .open(self.path));
+            .create(true)
+            .append(true)
+            .open(self.path));
         for line in &self.header {
             try!(writeln!(&mut writer, "{}", line));
         }
-        let worker_thread = try!(std::thread::Builder::new().
-            name("logger".to_string()).
-            spawn(move || loop {
+        let worker_thread = try!(std::thread::Builder::new()
+            .name("logger".to_string())
+            .spawn(move || loop {
                 match receiver.recv() {
                     Ok(LoggerInput::LogMsg(msg)) => {
                         writeln!(&mut writer, "{}", msg).expect("logger write message failed");
-                    },
+                    }
                     Ok(LoggerInput::Quit) => {
                         break;
-                    },
+                    }
                     Err(_) => {
                         panic!("sender closed without sending a Quit first, this is a bug");
-                    },
+                    }
                 }
             }));
-        Ok(Logger{
+        Ok(Logger {
             format: self.format,
             level: self.level,
             queue: sync_sender,
-            worker_thread: Some(worker_thread)
+            worker_thread: Some(worker_thread),
         })
     }
 }
