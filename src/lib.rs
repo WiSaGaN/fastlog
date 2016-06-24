@@ -1,16 +1,14 @@
 extern crate log;
 extern crate time;
 
-mod details;
-
 use log::{ Log, LogLevelFilter, LogMetadata, LogRecord, SetLoggerError };
 use std::fs::OpenOptions;
 use std::io::Error as IoError;
 use std::io::Write;
 use std::path::PathBuf;
+use std::sync::mpsc::{SyncSender, sync_channel};
 use time::{ get_time, Timespec };
 
-use details::Queue as BoundedQueue;
 
 #[derive(Clone, Debug)]
 enum LoggerInput {
@@ -21,7 +19,7 @@ enum LoggerInput {
 pub struct Logger {
     format: Box<Fn(Timespec, &LogRecord) -> String + Sync + Send>,
     level: LogLevelFilter,
-    queue: BoundedQueue<LoggerInput>,
+    queue: SyncSender<LoggerInput>,
     worker_thread: Option<std::thread::JoinHandle<()>>,
 }
 
@@ -47,18 +45,15 @@ impl Log for Logger {
     }
     fn log(&self, record: &LogRecord) {
         let log_msg = (self.format)(get_time(), record);
-        // TODO: add full policy: drop? or block?
-        self.queue.push(LoggerInput::LogMsg(log_msg)).unwrap();
-        self.worker_thread.as_ref().expect("logger thread empty, this is a bug").thread().unpark();
+        self.queue.send(LoggerInput::LogMsg(log_msg)).expect("logger queue closed when logging, this is a bug");
     }
 }
 
 impl Drop for Logger {
     fn drop(&mut self) {
-        self.queue.push(LoggerInput::Quit).unwrap();
-        self.worker_thread.as_ref().expect("logger thread empty, this is a bug").thread().unpark();
-        let join_handle = self.worker_thread.take().expect("logger thread empty, this is a bug");
-        join_handle.join().expect("failed to join logger thread");
+        self.queue.send(LoggerInput::Quit).expect("logger queue closed before joining logger thread, this is a bug");
+        let join_handle = self.worker_thread.take().expect("logger thread empty when dropping logger, this is a bug");
+        join_handle.join().expect("failed to join logger thread when dropping logger, this is a bug");
     }
 }
 
@@ -112,8 +107,7 @@ impl LogBuilder {
     }
 
     pub fn build(self) -> Result<Logger, IoError> {
-        let queue = BoundedQueue::with_capacity(self.capacity);
-        let queue_receiver = queue.clone();
+        let (sync_sender, receiver) = sync_channel(self.capacity);
         let mut writer = try!(OpenOptions::new()
                               .create(true)
                               .append(true)
@@ -124,23 +118,22 @@ impl LogBuilder {
         let worker_thread = try!(std::thread::Builder::new().
             name("logger".to_string()).
             spawn(move || loop {
-                match queue_receiver.pop() {
-                    Some(LoggerInput::LogMsg(msg)) => {
-                        // TODO: handle error
-                        writeln!(&mut writer, "{}", msg).expect("writeln failed");
+                match receiver.recv() {
+                    Ok(LoggerInput::LogMsg(msg)) => {
+                        writeln!(&mut writer, "{}", msg).expect("logger write message failed");
                     },
-                    Some(LoggerInput::Quit) => {
+                    Ok(LoggerInput::Quit) => {
                         break;
                     },
-                    None => {
-                        std::thread::park();
+                    Err(_) => {
+                        panic!("sender closed without sending a Quit first, this is a bug");
                     },
                 }
             }));
         Ok(Logger{
             format: self.format,
             level: self.level,
-            queue: queue,
+            queue: sync_sender,
             worker_thread: Some(worker_thread)
         })
     }
