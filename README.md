@@ -24,7 +24,7 @@ Then, add this to your crate root:
 
 ```rust
 extern crate fastlog;
-#[marcro_use]
+#[macro_use]
 extern crate log
 ```
 
