@@ -27,6 +27,7 @@ unsafe impl Send for Logger {}
 unsafe impl Sync for Logger {}
 
 impl Logger {
+    #[inline]
     fn max_log_level(&self) -> LogLevelFilter {
         self.level
     }
@@ -40,9 +41,11 @@ impl Logger {
 }
 
 impl Log for Logger {
+    #[inline]
     fn enabled(&self, metadata: &LogMetadata) -> bool {
         self.level >= metadata.level()
     }
+
     fn log(&self, record: &LogRecord) {
         let log_msg = (self.format)(get_time(), record);
         self.queue
@@ -73,6 +76,7 @@ pub struct LogBuilder {
 }
 
 impl LogBuilder {
+    #[inline]
     pub fn new() -> LogBuilder {
         LogBuilder {
             format: Box::new(|ts: Timespec, record: &LogRecord| {
@@ -89,6 +93,7 @@ impl LogBuilder {
         }
     }
 
+    #[inline]
     pub fn format<F: 'static>(&mut self, format: F) -> &mut LogBuilder
         where F: Fn(Timespec, &LogRecord) -> String + Sync + Send
     {
@@ -96,21 +101,25 @@ impl LogBuilder {
         self
     }
 
+    #[inline]
     pub fn capacity(&mut self, capacity: usize) -> &mut LogBuilder {
         self.capacity = capacity;
         self
     }
 
+    #[inline]
     pub fn file(&mut self, path: PathBuf) -> &mut LogBuilder {
         self.path = path;
         self
     }
 
+    #[inline]
     pub fn max_log_level(&mut self, level: LogLevelFilter) -> &mut LogBuilder {
         self.level = level;
         self
     }
 
+    #[inline]
     pub fn header(&mut self, header: Vec<String>) -> &mut LogBuilder {
         self.header = header;
         self

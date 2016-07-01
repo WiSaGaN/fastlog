@@ -5,6 +5,7 @@ This project roughly adheres to [Semantic Versioning](http://semver.org/). For 0
 ## Unreleased
 
 * Change to use `std::sync::mpsc::sync_channel` as log queue
+* Add inline to improve LTO
 
 ## 0.1.0 - 2016-05-08
 
