@@ -1,3 +1,4 @@
+extern crate crossbeam_channel as channel;
 extern crate log;
 extern crate time;
 
@@ -6,7 +7,6 @@ use std::fs::OpenOptions;
 use std::io::Error as IoError;
 use std::io::Write;
 use std::path::PathBuf;
-use std::sync::mpsc::{SyncSender, sync_channel};
 use time::{get_time, Timespec};
 
 
@@ -19,7 +19,7 @@ enum LoggerInput {
 pub struct Logger {
     format: Box<Fn(Timespec, &LogRecord) -> String + Sync + Send>,
     level: LogLevelFilter,
-    queue: SyncSender<LoggerInput>,
+    queue: channel::Sender<LoggerInput>,
     worker_thread: Option<std::thread::JoinHandle<()>>,
 }
 
@@ -126,7 +126,7 @@ impl LogBuilder {
     }
 
     pub fn build(self) -> Result<Logger, IoError> {
-        let (sync_sender, receiver) = sync_channel(self.capacity);
+        let (sync_sender, receiver) = channel::bounded(self.capacity);
         let mut writer = try!(OpenOptions::new()
             .create(true)
             .append(true)
@@ -144,8 +144,8 @@ impl LogBuilder {
                     Ok(LoggerInput::Quit) => {
                         break;
                     }
-                    Err(_) => {
-                        panic!("sender closed without sending a Quit first, this is a bug");
+                    Err(e) => {
+                        panic!("sender closed without sending a Quit first, this is a bug, {}", e);
                     }
                 }
             }));
