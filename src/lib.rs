@@ -2,7 +2,7 @@ extern crate crossbeam_channel as channel;
 extern crate log;
 extern crate time;
 
-use log::{Log, LogLevelFilter, LogMetadata, LogRecord, SetLoggerError};
+use log::{Log, LevelFilter, Metadata, Record, SetLoggerError};
 use std::fs::OpenOptions;
 use std::io::Error as IoError;
 use std::io::Write;
@@ -13,13 +13,20 @@ use time::{get_time, Timespec};
 #[derive(Clone, Debug)]
 enum LoggerInput {
     LogMsg(String),
+    Flush,
     Quit,
 }
 
+#[derive(Clone, Debug)]
+enum LoggerOutput {
+    Flushed,
+}
+
 pub struct Logger {
-    format: Box<Fn(Timespec, &LogRecord) -> String + Sync + Send>,
-    level: LogLevelFilter,
+    format: Box<Fn(Timespec, &Record) -> String + Sync + Send>,
+    level: LevelFilter,
     queue: channel::Sender<LoggerInput>,
+    notification: channel::Receiver<LoggerOutput>,
     worker_thread: Option<std::thread::JoinHandle<()>>,
 }
 
@@ -27,30 +34,32 @@ unsafe impl Send for Logger {}
 unsafe impl Sync for Logger {}
 
 impl Logger {
-    #[inline]
-    fn max_log_level(&self) -> LogLevelFilter {
-        self.level
-    }
-
     pub fn init(self) -> Result<(), SetLoggerError> {
-        log::set_logger(|max_log_level| {
-            max_log_level.set(self.max_log_level());
-            Box::new(self)
-        })
+        log::set_max_level(self.level);
+        let boxed = Box::new(self);
+        log::set_boxed_logger(boxed)
     }
 }
 
 impl Log for Logger {
     #[inline]
-    fn enabled(&self, metadata: &LogMetadata) -> bool {
+    fn enabled(&self, metadata: &Metadata) -> bool {
         self.level >= metadata.level()
     }
 
-    fn log(&self, record: &LogRecord) {
+    fn log(&self, record: &Record) {
         let log_msg = (self.format)(get_time(), record);
         self.queue
             .send(LoggerInput::LogMsg(log_msg))
-            .expect("logger queue closed when logging, this is a bug");
+            .expect("logger queue closed when logging, this is a bug")
+    }
+
+    fn flush(&self) {
+        self.queue
+            .send(LoggerInput::Flush)
+            .expect("logger queue closed when flushing, this is a bug");
+        self.notification.recv()
+            .expect("logger notification closed, this is a bug");
     }
 }
 
@@ -68,9 +77,9 @@ impl Drop for Logger {
 }
 
 pub struct LogBuilder {
-    format: Box<Fn(Timespec, &LogRecord) -> String + Sync + Send>,
+    format: Box<Fn(Timespec, &Record) -> String + Sync + Send>,
     capacity: usize,
-    level: LogLevelFilter,
+    level: LevelFilter,
     path: PathBuf,
     header: Vec<String>,
 }
@@ -79,15 +88,15 @@ impl LogBuilder {
     #[inline]
     pub fn new() -> LogBuilder {
         LogBuilder {
-            format: Box::new(|ts: Timespec, record: &LogRecord| {
+            format: Box::new(|ts: Timespec, record: &Record| {
                 format!("{:?} {}:{}: {}",
                         ts,
                         record.level(),
-                        record.location().module_path(),
+                        record.module_path().unwrap_or(""),
                         record.args())
             }),
             capacity: 2048,
-            level: LogLevelFilter::Info,
+            level: LevelFilter::Info,
             path: PathBuf::from("./current.log"),
             header: Vec::new(),
         }
@@ -95,7 +104,7 @@ impl LogBuilder {
 
     #[inline]
     pub fn format<F: 'static>(&mut self, format: F) -> &mut LogBuilder
-        where F: Fn(Timespec, &LogRecord) -> String + Sync + Send
+        where F: Fn(Timespec, &Record) -> String + Sync + Send
     {
         self.format = Box::new(format);
         self
@@ -114,7 +123,7 @@ impl LogBuilder {
     }
 
     #[inline]
-    pub fn max_log_level(&mut self, level: LogLevelFilter) -> &mut LogBuilder {
+    pub fn max_log_level(&mut self, level: LevelFilter) -> &mut LogBuilder {
         self.level = level;
         self
     }
@@ -127,6 +136,7 @@ impl LogBuilder {
 
     pub fn build(self) -> Result<Logger, IoError> {
         let (sync_sender, receiver) = channel::bounded(self.capacity);
+        let (notification_sender, notification_receiver) = channel::bounded(1);
         let mut writer = try!(OpenOptions::new()
             .create(true)
             .append(true)
@@ -141,6 +151,9 @@ impl LogBuilder {
                     Ok(LoggerInput::LogMsg(msg)) => {
                         writeln!(&mut writer, "{}", msg).expect("logger write message failed");
                     }
+                    Ok(LoggerInput::Flush) => {
+                        notification_sender.send(LoggerOutput::Flushed).expect("logger notification failed");
+                    }
                     Ok(LoggerInput::Quit) => {
                         break;
                     }
@@ -153,6 +166,7 @@ impl LogBuilder {
             format: self.format,
             level: self.level,
             queue: sync_sender,
+            notification: notification_receiver,
             worker_thread: Some(worker_thread),
         })
     }

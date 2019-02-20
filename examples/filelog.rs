@@ -4,11 +4,11 @@ extern crate log;
 extern crate time;
 
 use fastlog::LogBuilder;
-use log::LogRecord;
+use log::Record;
 use time::{ at, Timespec };
 
 fn init() {
-    let format = |ts: Timespec, record: &LogRecord| {
+    let format = |ts: Timespec, record: &Record| {
         let tm = at(ts);
         let tm_millisec = tm.tm_nsec / 1_000_000;
         let tm_microsec = tm.tm_nsec / 1_000 - tm_millisec * 1_000;
@@ -23,9 +23,9 @@ fn init() {
                 tm_microsec,
                 tm.tm_utcoff/3600,
                 std::thread::current().name().unwrap_or_default(),
-                record.location().module_path(),
-                record.location().file(),
-                record.location().line(),
+                record.module_path().unwrap_or(""),
+                record.file().unwrap_or(""),
+                record.line().unwrap_or(0),
                 record.level(),
                 record.args())
     };
@@ -38,5 +38,5 @@ fn init() {
 fn main() {
     init();
     info!("Hello, world.");
-    log::shutdown_logger().unwrap();
+    log::logger().flush();
 }

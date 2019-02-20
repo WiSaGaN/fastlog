@@ -10,14 +10,14 @@ Currently this is still a work in progress.
 
 ## Usage
 
-Fastlog requires a minimum rustc version of 1.4.0.
+Fastlog requires a minimum rustc version of 1.32.0.
 
 To use fastlog, first add this to your `Cargo.toml`;
 
 ```toml
 [dependencies]
-fastlog = "0.1"
-log = "0.3"
+fastlog = "0.2"
+log = "0.4"
 ```
 
 Then, add this to your crate root:
@@ -40,7 +40,7 @@ extern crate log;
 fn main() {
     fastlog::LogBuilder::new().build().unwrap().init().unwrap();
     info!("Hello, world.");
-    log::shutdown_logger().unwrap();
+    log::logger().flush();
 }
 ```
 
