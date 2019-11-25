@@ -23,7 +23,7 @@ enum LoggerOutput {
 }
 
 pub struct Logger {
-    format: Box<Fn(Timespec, &Record) -> String + Sync + Send>,
+    format: Box<dyn Fn(Timespec, &Record) -> String + Sync + Send>,
     level: LevelFilter,
     queue: channel::Sender<LoggerInput>,
     notification: channel::Receiver<LoggerOutput>,
@@ -77,7 +77,7 @@ impl Drop for Logger {
 }
 
 pub struct LogBuilder {
-    format: Box<Fn(Timespec, &Record) -> String + Sync + Send>,
+    format: Box<dyn Fn(Timespec, &Record) -> String + Sync + Send>,
     capacity: usize,
     level: LevelFilter,
     path: PathBuf,
@@ -137,14 +137,14 @@ impl LogBuilder {
     pub fn build(self) -> Result<Logger, IoError> {
         let (sync_sender, receiver) = channel::bounded(self.capacity);
         let (notification_sender, notification_receiver) = channel::bounded(1);
-        let mut writer = try!(OpenOptions::new()
+        let mut writer = OpenOptions::new()
             .create(true)
             .append(true)
-            .open(self.path));
+            .open(self.path)?;
         for line in &self.header {
-            try!(writeln!(&mut writer, "{}", line));
+            writeln!(&mut writer, "{}", line)?;
         }
-        let worker_thread = try!(std::thread::Builder::new()
+        let worker_thread = std::thread::Builder::new()
             .name("logger".to_string())
             .spawn(move || loop {
                 match receiver.recv() {
@@ -161,7 +161,7 @@ impl LogBuilder {
                         panic!("sender closed without sending a Quit first, this is a bug, {}", e);
                     }
                 }
-            }));
+            })?;
         Ok(Logger {
             format: self.format,
             level: self.level,
