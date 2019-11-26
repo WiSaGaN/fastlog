@@ -179,3 +179,10 @@ impl LogBuilder {
         })
     }
 }
+
+impl Default for LogBuilder {
+    #[inline]
+    fn default() -> Self {
+        LogBuilder::new()
+    }
+}
