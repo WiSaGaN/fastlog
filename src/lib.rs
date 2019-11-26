@@ -2,13 +2,12 @@ extern crate crossbeam_channel as channel;
 extern crate log;
 extern crate time;
 
-use log::{Log, LevelFilter, Metadata, Record, SetLoggerError};
+use log::{LevelFilter, Log, Metadata, Record, SetLoggerError};
 use std::fs::OpenOptions;
 use std::io::Error as IoError;
 use std::io::Write;
 use std::path::PathBuf;
 use time::{get_time, Timespec};
-
 
 #[derive(Clone, Debug)]
 enum LoggerInput {
@@ -58,7 +57,8 @@ impl Log for Logger {
         self.queue
             .send(LoggerInput::Flush)
             .expect("logger queue closed when flushing, this is a bug");
-        self.notification.recv()
+        self.notification
+            .recv()
             .expect("logger notification closed, this is a bug");
     }
 }
@@ -68,10 +68,12 @@ impl Drop for Logger {
         self.queue
             .send(LoggerInput::Quit)
             .expect("logger queue closed before joining logger thread, this is a bug");
-        let join_handle = self.worker_thread
+        let join_handle = self
+            .worker_thread
             .take()
             .expect("logger thread empty when dropping logger, this is a bug");
-        join_handle.join()
+        join_handle
+            .join()
             .expect("failed to join logger thread when dropping logger, this is a bug");
     }
 }
@@ -89,11 +91,13 @@ impl LogBuilder {
     pub fn new() -> LogBuilder {
         LogBuilder {
             format: Box::new(|ts: Timespec, record: &Record| {
-                format!("{:?} {}:{}: {}",
-                        ts,
-                        record.level(),
-                        record.module_path().unwrap_or(""),
-                        record.args())
+                format!(
+                    "{:?} {}:{}: {}",
+                    ts,
+                    record.level(),
+                    record.module_path().unwrap_or(""),
+                    record.args()
+                )
             }),
             capacity: 2048,
             level: LevelFilter::Info,
@@ -104,7 +108,8 @@ impl LogBuilder {
 
     #[inline]
     pub fn format<F: 'static>(&mut self, format: F) -> &mut LogBuilder
-        where F: Fn(Timespec, &Record) -> String + Sync + Send
+    where
+        F: Fn(Timespec, &Record) -> String + Sync + Send,
     {
         self.format = Box::new(format);
         self
@@ -152,13 +157,18 @@ impl LogBuilder {
                         writeln!(&mut writer, "{}", msg).expect("logger write message failed");
                     }
                     Ok(LoggerInput::Flush) => {
-                        notification_sender.send(LoggerOutput::Flushed).expect("logger notification failed");
+                        notification_sender
+                            .send(LoggerOutput::Flushed)
+                            .expect("logger notification failed");
                     }
                     Ok(LoggerInput::Quit) => {
                         break;
                     }
                     Err(e) => {
-                        panic!("sender closed without sending a Quit first, this is a bug, {}", e);
+                        panic!(
+                            "sender closed without sending a Quit first, this is a bug, {}",
+                            e
+                        );
                     }
                 }
             })?;
