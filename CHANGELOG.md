@@ -4,6 +4,7 @@ This project roughly adheres to [Semantic Versioning](http://semver.org/). For 0
 
 ## 0.2.1 - 2019-11-26
 * Implement `Default` for `LogBuilder`
+* Upgrade `crossbeam_channel` to 0.4.0
 * Upgrade to 2018 edition and clean up warnings
 
 ## 0.2.0 - 2019-02-21
