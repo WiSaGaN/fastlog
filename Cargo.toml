@@ -9,6 +9,7 @@ description = """
 A high performance asynchronous logger
 """
 keywords = ["async", "fastlog", "log"]
+edition = "2018"
 
 [dependencies]
 crossbeam-channel = "0.4.0"

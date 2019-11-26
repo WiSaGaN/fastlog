@@ -1,12 +1,10 @@
-extern crate crossbeam_channel as channel;
-extern crate log;
-extern crate time;
-
-use log::{LevelFilter, Log, Metadata, Record, SetLoggerError};
 use std::fs::OpenOptions;
 use std::io::Error as IoError;
 use std::io::Write;
 use std::path::PathBuf;
+
+use crossbeam_channel as channel;
+use log::{LevelFilter, Log, Metadata, Record, SetLoggerError};
 use time::{get_time, Timespec};
 
 #[derive(Clone, Debug)]
