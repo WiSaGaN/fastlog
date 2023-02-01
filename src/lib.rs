@@ -7,6 +7,8 @@ use crossbeam_channel as channel;
 use log::{LevelFilter, Log, Metadata, Record, SetLoggerError};
 use time::{get_time, Timespec};
 
+type Format = Box<dyn Fn(Timespec, &Record) -> String + Sync + Send>;
+
 #[derive(Clone, Debug)]
 enum LoggerInput {
     LogMsg(String),
@@ -20,7 +22,7 @@ enum LoggerOutput {
 }
 
 pub struct Logger {
-    format: Box<dyn Fn(Timespec, &Record) -> String + Sync + Send>,
+    format: Format,
     level: LevelFilter,
     queue: channel::Sender<LoggerInput>,
     notification: channel::Receiver<LoggerOutput>,
@@ -77,7 +79,8 @@ impl Drop for Logger {
 }
 
 pub struct LogBuilder {
-    format: Box<dyn Fn(Timespec, &Record) -> String + Sync + Send>,
+    #[allow(clippy::type_complexity)]
+    format: Format,
     capacity: usize,
     level: LevelFilter,
     path: PathBuf,
@@ -145,14 +148,14 @@ impl LogBuilder {
             .append(true)
             .open(self.path)?;
         for line in &self.header {
-            writeln!(&mut writer, "{}", line)?;
+            writeln!(&mut writer, "{line}")?;
         }
         let worker_thread = std::thread::Builder::new()
             .name("logger".to_string())
             .spawn(move || loop {
                 match receiver.recv() {
                     Ok(LoggerInput::LogMsg(msg)) => {
-                        writeln!(&mut writer, "{}", msg).expect("logger write message failed");
+                        writeln!(&mut writer, "{msg}").expect("logger write message failed");
                     }
                     Ok(LoggerInput::Flush) => {
                         notification_sender

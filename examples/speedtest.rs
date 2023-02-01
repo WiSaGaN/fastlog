@@ -47,6 +47,6 @@ fn main() {
     }
     let end = get_time();
     let latency = (end - start) / num;
-    println!("{:?}", latency);
+    println!("{latency:?}");
     log::logger().flush();
 }
