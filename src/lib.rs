@@ -108,9 +108,9 @@ impl LogBuilder {
     }
 
     #[inline]
-    pub fn format<F: 'static>(&mut self, format: F) -> &mut LogBuilder
+    pub fn format<F>(&mut self, format: F) -> &mut LogBuilder
     where
-        F: Fn(Timespec, &Record) -> String + Sync + Send,
+        F: 'static + Fn(Timespec, &Record) -> String + Sync + Send,
     {
         self.format = Box::new(format);
         self
