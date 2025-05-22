@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  # ──────────────────── MSRV ────────────────────
+  msrv:
+    name: MSRV (${{ steps.msrv.outputs.rust }})
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4        # ← @v4 is the current tag
+
+      # Grab the value after `rust-version = "` (first match only)
+      - name: Extract MSRV from Cargo.toml
+        id: msrv
+        run: |
+          echo "rust=$(grep -m1 '^rust-version' Cargo.toml | cut -d '"' -f2)" >> "$GITHUB_OUTPUT"
+
+      - name: Install ${{ steps.msrv.outputs.rust }}
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: ${{ steps.msrv.outputs.rust }}
+          override: true
+          profile: minimal   # a bit quicker; omit for full std docs
+
+      - run: cargo build --all-features --verbose
+      - run: cargo test  --all-features --verbose
+
+  # ──────────────────── STABLE ────────────────────
+  stable:
+    name: Stable
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+
+      - run: cargo build --all-features --verbose
+      - run: cargo test  --all-features --verbose
