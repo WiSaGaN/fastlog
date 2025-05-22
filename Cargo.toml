@@ -9,7 +9,7 @@ description = """
 A high performance asynchronous logger
 """
 keywords = ["async", "fastlog", "log"]
-edition = "2018"
+edition = "2024"
 rust-version = "1.85.0"
 
 [dependencies]
