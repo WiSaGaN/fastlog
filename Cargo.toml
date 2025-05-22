@@ -15,3 +15,10 @@ edition = "2018"
 crossbeam-channel = "0.4.4"
 log = { version = "0.4.6", features = ["std"] }
 time = "0.1.35"
+
+[dev-dependencies]
+criterion = "0.3"
+
+[[bench]]
+name = "logging_benchmark"
+harness = false
