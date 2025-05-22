@@ -7,7 +7,7 @@ on:
 jobs:
   # ──────────────────── MSRV ────────────────────
   msrv:
-    name: MSRV (${{ steps.msrv.outputs.rust }})
+    name: MSRV
     runs-on: ubuntu-latest
 
     steps:
